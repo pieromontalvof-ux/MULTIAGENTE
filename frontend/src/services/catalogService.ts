@@ -81,10 +81,11 @@ export const guardarLimitesStock = (
   method: 'PUT', body: cuerpo({ stock_minimo, stock_maximo }),
 })
 
-export const obtenerProductosCatalogo = (token: string) =>
+export const obtenerProductosCatalogo = (token: string, signal?: AbortSignal) =>
   solicitud<RespuestaCatalogoProductos>(
     '/catalogos/productos',
     token,
+      { signal },
   )
 
 export const obtenerCategoriasProducto = (token: string) =>
@@ -250,3 +251,7 @@ export const cambiarEstadoProveedor = (
     token,
     { method: 'PATCH', body: cuerpo({ motivo }) },
   )
+
+export const consultarRucProveedor = (token: string, ruc: string) =>
+  solicitud<{ nombre: string; numero_documento: string }>('/catalogos/proveedores/consultar-ruc', token,
+    { method: 'POST', body: cuerpo({ ruc }) })

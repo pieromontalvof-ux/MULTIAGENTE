@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ChevronRight, CheckCheck } from 'lucide-react'
-import { CatalogForm, type FormValues } from './CatalogForm'
+import { CatalogForm } from './CatalogForm'
+import type { FormValues } from './catalogFormValues'
 import { ReviewDetails } from './ReviewDetails'
 import { solicitar, type FormularioCatalogo, type RecursoFormulario, type RespuestaAsistente } from './service'
 
@@ -19,12 +20,13 @@ interface Props {
   onBusy: (busy: boolean) => void
   onSaved: (message: string) => void
   initialSnapshot?: WorkflowSnapshot | null
+  initialValues?: FormValues
   onSnapshot?: (snapshot: WorkflowSnapshot) => void
   onCheckpoint?: (snapshot: WorkflowSnapshot) => Promise<void>
 }
 
-export function CatalogWorkflow({ token, form, disabled, onChange, onReview, onInvalidate, onNestedChange, onBusy, onSaved, initialSnapshot, onSnapshot, onCheckpoint }: Props) {
-  const [frames, setFrames] = useState<Frame[]>(initialSnapshot?.frames ?? [{ form, values: {}, version: 0 }])
+export function CatalogWorkflow({ token, form, disabled, onChange, onReview, onInvalidate, onNestedChange, onBusy, onSaved, initialSnapshot, initialValues, onSnapshot, onCheckpoint }: Props) {
+  const [frames, setFrames] = useState<Frame[]>(initialSnapshot?.frames ?? [{ form, values: initialValues ?? {}, version: 0 }])
   const [proposal, setProposal] = useState<RespuestaAsistente | null>(initialSnapshot?.proposal ?? null)
   const [checked, setChecked] = useState(false)
   const [dirty, setDirty] = useState(initialSnapshot?.dirty ?? false)

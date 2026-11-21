@@ -1,3 +1,4 @@
+import { scheduleEffect } from '../../utils/scheduleEffect'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { blankWorkspace, type WorkspaceState } from './workspaceState'
 
@@ -6,7 +7,15 @@ type Reply = { workspace: WorkspaceState | null; revision: number; mensaje?: str
 const api = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:5000/api'
 // The authoritative trace stays on the server; recovery saves its reference.
 function serialize(value: unknown) {
-  return JSON.stringify(value, (key, item) => key === 'actividad' && item ? { id: item.id } : item)
+  return JSON.stringify(value, (key, item) => {
+    if (key === 'actividad' && item) return { id: item.id }
+    // Weekly native planning embeds the same full reports recursively. The UI
+    // renders respuesta/registros; signed flow tokens carry resumable state.
+    if (key === 'contexto' && item && typeof item === 'object' && !Array.isArray(item)) {
+      return Object.fromEntries(Object.entries(item).filter(([name]) => name !== 'plan_semanal'))
+    }
+    return item
+  })
 }
 
 export function useWorkspacePersistence(token: string | null, value: WorkspaceState | null,
@@ -16,7 +25,7 @@ export function useWorkspacePersistence(token: string | null, value: WorkspaceSt
   const [reloadKey, setReloadKey] = useState(0)
   const latest = useRef(value)
   const restoreRef = useRef(restore)
-  latest.current = value; restoreRef.current = restore
+  useEffect(() => { latest.current = value; restoreRef.current = restore }, [value, restore])
   const active = useRef<object | null>(null)
   const phase = useRef<Status>('loading')
   const revision = useRef(0)
@@ -32,7 +41,7 @@ export function useWorkspacePersistence(token: string | null, value: WorkspaceSt
     timer.current = null
   }, [])
 
-  useEffect(() => {
+  useEffect(() => scheduleEffect(() => {
     const identity = {}; active.current = identity
     const controller = new AbortController()
     phase.current = 'loading'; setStatus('loading'); setMessage('')
@@ -58,7 +67,8 @@ export function useWorkspacePersistence(token: string | null, value: WorkspaceSt
       setMessage(error instanceof Error ? error.message : 'No se pudo recuperar el progreso.')
     })
     return () => { active.current = null; controller.abort(); cancelTimer() }
-  }, [token, reloadKey, cancelTimer])
+
+    }), [token, reloadKey, cancelTimer])
 
   const enqueue = useCallback((next: WorkspaceState | null, force = false) => {
     cancelTimer()

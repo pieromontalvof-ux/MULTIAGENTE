@@ -1,7 +1,9 @@
+import type { FormValues } from './catalogFormValues'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ClipboardList, RefreshCw, Plus } from 'lucide-react'
 import type { FormularioCatalogo, RecursoFormulario } from './service'
 import './CatalogForm.css'
+import { tipoArticulo } from './labels'
 
 interface Props {
   form: FormularioCatalogo
@@ -12,8 +14,6 @@ interface Props {
   initialValues?: FormValues
   onDependency: (resource: RecursoFormulario, values: FormValues, seed?: FormValues) => void
 }
-export type FormValues = { nombre?: string; prefijo?: string; categorias?: number[]; proveedor?: string; categoria?: string; unidad?: string; contenido?: string; item?: string; tipo?: string; menaje?: string; precio?: string }
-
 export function CatalogForm({ form, disabled, onChange, onValuesChange, onReview, initialValues = {}, onDependency }: Props) {
   const [nombre, setNombre] = useState(initialValues.nombre ?? '')
   const [prefijo, setPrefijo] = useState(initialValues.prefijo ?? '')
@@ -26,6 +26,7 @@ export function CatalogForm({ form, disabled, onChange, onValuesChange, onReview
   const [tipo, setTipo] = useState(initialValues.tipo ?? '')
   const [menaje, setMenaje] = useState(initialValues.menaje ?? '')
   const [precio, setPrecio] = useState(initialValues.precio ?? '')
+  const [activo, setActivo] = useState(initialValues.activo ?? true)
   const categoryForm = form.recurso === 'categorias_productos' || form.recurso === 'categorias_carta'
   const supplierForm = form.recurso === 'proveedores'
   const presentationForm = form.recurso === 'presentaciones'
@@ -36,7 +37,7 @@ export function CatalogForm({ form, disabled, onChange, onValuesChange, onReview
   const availableSuppliers = form.proveedores.filter(p => p.activo && p.ids_categorias.includes(Number(categoria)))
   const symbol = form.unidades_medida.find(u => u.codigo === unidad)?.simbolo ?? ''
   const duplicate = categoryForm && form.categorias.some(c => c.nombre.trim().toLocaleLowerCase() === nombre.trim().toLocaleLowerCase() || (prefijo && c.prefijo.toUpperCase() === prefijo.toUpperCase()))
-  const values = { nombre, prefijo, categorias, proveedor, categoria, unidad, contenido, item, tipo, menaje, precio }
+  const values = { nombre, prefijo, categorias, proveedor, categoria, unidad, contenido, item, tipo, menaje, precio, activo }
   const snapshot = JSON.stringify(values)
   const valueCallback = useRef(onValuesChange)
   useEffect(() => { valueCallback.current = onValuesChange }, [onValuesChange])
@@ -50,14 +51,14 @@ export function CatalogForm({ form, disabled, onChange, onValuesChange, onReview
     if (duplicate || disabled) return
     onReview(categoryForm ? { nombre: nombre.trim(), prefijo } : tablewareForm ? { nombre: nombre.trim() } : presentationForm ? {
       id_item_carta: item ? Number(item) : null, nombre_item: nombre.trim(), tipo_item: tipo,
-      id_categoria_carta: Number(categoria), id_menaje: Number(menaje), contenido: Number(contenido), unidad, precio: Number(precio), activo: true,
+      id_categoria_carta: Number(categoria), id_menaje: Number(menaje), contenido: Number(contenido), unidad, precio: Number(precio), activo,
     } : supplierForm ?
       { nombre: nombre.trim(), ids_categorias: categorias } :
       { nombre: nombre.trim(), id_proveedor: Number(proveedor), id_categoria: Number(categoria), unidad, presentacion: Number(contenido) })
   }
 
   return <form className="assistant-catalog-form" onSubmit={submit}>
-    <header><span className="assistant-catalog-icon"><ClipboardList size={20} /></span><div><h3>{form.titulo}</h3><p>Completa los datos. El siguiente paso es revisar la propuesta.</p></div></header>
+    <header><span className="assistant-catalog-icon"><ClipboardList size={20} /></span><div><h3>{form.titulo}</h3><p>Revisa o ajusta los datos. También puedes continuar por conversación.</p></div></header>
     <fieldset disabled={disabled} onChange={onChange}>
       {presentationForm && <label>Artículo de carta<select value={item} onChange={e => { const next = form.items.find(i => i.id_item_carta === Number(e.target.value)); setItem(e.target.value); setNombre(next?.nombre ?? ''); setTipo(next?.tipo ?? ''); setCategoria(next ? String(next.id_categoria_carta) : '') }}><option value="">Crear artículo nuevo</option>{form.items.filter(i => i.activo).map(i => <option key={i.id_item_carta} value={i.id_item_carta}>{i.nombre}</option>)}</select></label>}
       <label>{presentationForm ? 'Nombre del artículo' : 'Nombre'}<input autoFocus required readOnly={presentationForm && Boolean(item)} maxLength={presentationForm ? 200 : 100} value={nombre} onChange={e => setNombre(e.target.value)} placeholder={categoryForm ? 'Nombre de la categoría' : supplierForm ? 'Nombre del proveedor' : 'Nombre'} /></label>
@@ -84,11 +85,12 @@ export function CatalogForm({ form, disabled, onChange, onValuesChange, onReview
         {!item && dependency('categorias_carta', 'No está mi categoría de carta: crear una')}
         <label>2. Menaje<select required value={menaje} onChange={e => setMenaje(e.target.value)}><option value="">Selecciona el menaje</option>{form.menajes.filter(m => m.activo).map(m => <option key={m.id_menaje} value={m.id_menaje}>{m.nombre}</option>)}</select></label>
         {dependency('menajes', 'No está mi menaje: crear uno')}
-        <label>Tipo de artículo<select required disabled={Boolean(item)} value={tipo} onChange={e => setTipo(e.target.value)}><option value="">Selecciona</option>{form.tipos.map(t => <option key={t} value={t}>{t === 'DIRECTO' ? 'Directo' : 'Preparado'}</option>)}</select></label>
+        <label>Tipo de artículo<select required disabled={Boolean(item)} value={tipo} onChange={e => setTipo(e.target.value)}><option value="">Selecciona</option>{form.tipos.map(t => <option key={t} value={t}>{tipoArticulo(t)}</option>)}</select></label>
         <div className="assistant-catalog-columns"><label>Unidad<select required value={unidad} onChange={e => setUnidad(e.target.value)}><option value="">Selecciona</option>{form.unidades_medida.filter(u => ['KGM', 'LTR', 'C62', 'PORCION'].includes(u.codigo)).map(u => <option key={u.codigo} value={u.codigo}>{u.nombre} ({u.simbolo})</option>)}</select></label>
         <label>Contenido{symbol ? ` (${symbol})` : ''}<input required type="number" min="0.001" max="999999999.999" step="0.001" value={contenido} onChange={e => setContenido(e.target.value)} /></label></div>
         <label>Precio de venta (S/)<input required type="number" min="0" max="99999999.99" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} /></label>
-        <p className="assistant-note">Se creará una presentación activa. La receta se define después de guardar esta presentación.</p>
+        <label><input type="checkbox" checked={activo} onChange={e => setActivo(e.target.checked)} />Presentación activa</label>
+        <p className="assistant-note">La receta se define después de guardar esta presentación.</p>
       </>}
     </fieldset>
     <footer><button type="button" className="assistant-secondary" onClick={() => onDependency(form.recurso, values)} disabled={disabled}><RefreshCw size={15} />Actualizar opciones</button><button type="submit" disabled={disabled || duplicate || (supplierForm && !categorias.length)}>Revisar propuesta</button></footer>

@@ -1,3 +1,4 @@
+import { scheduleEffect } from '../utils/scheduleEffect'
 import { StatusFilters } from '../components/catalogs/StatusFilters'
 import { formatearUnidad } from '../utils/unitHelpers'
 import { DeleteRecordButton } from '../components/catalogs/DeleteRecordButton'
@@ -15,7 +16,7 @@ import {
   useState,
 } from 'react'
 
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/authState'
 import { PresentationEditor } from '../components/catalogs/PresentationEditor'
 import { permisosDe } from '../utils/permissionHelpers'
 import {
@@ -70,9 +71,8 @@ export function SalesPresentationsPage() {
 
       try {
         setError('')
-        actualizacion
-          ? setActualizando(true)
-          : setCargando(true)
+        if (actualizacion) setActualizando(true)
+        else setCargando(true)
         setDatos(await obtenerPresentacionesVenta(token))
       } catch (desconocido) {
         setError(
@@ -88,9 +88,10 @@ export function SalesPresentationsPage() {
     [token],
   )
 
-  useEffect(() => {
+  useEffect(() => scheduleEffect(() => {
     void cargar()
-  }, [cargar])
+
+    }), [cargar])
 
   const categorias = useMemo(
     () => Array.from(
